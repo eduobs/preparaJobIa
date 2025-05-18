@@ -17,10 +17,9 @@ namespace PreparaJobAI.Api.Controllers
             _logger = logger;
         }
 
-        // POST: api/analisedocumentos/curriculo
         [HttpPost("curriculo")]
-        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)] // Exemplo de tipo de retorno para Swagger
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErroModel), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> UploadCurriculoAsync(IFormFile arquivoCurriculo)
         {
@@ -47,7 +46,7 @@ namespace PreparaJobAI.Api.Controllers
 
                 return BadRequest(new ErroModel("Formato de arquivo inválido. Por favor, envie um PDF.", "ERR_002"));
             }
-            
+
             string textoDoPdf = string.Empty;
 
             try
@@ -125,6 +124,68 @@ namespace PreparaJobAI.Api.Controllers
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
                     "Ocorreu um erro interno ao processar o seu currículo. Tente novamente mais tarde."
+                );
+            }
+        }
+
+        [HttpPost("vaga")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErroModel), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ErroModel), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> SubmeterVaga([FromBody] VagaModel vagaInput)
+        {
+            if (!ModelState.IsValid)
+            {
+                var detalhesErro = ModelState.Values
+                                        .SelectMany(v => v.Errors)
+                                        .Select(e => e.ErrorMessage)
+                                        .ToList();
+                _logger.LogWarning("Submissão de vaga com dados inválidos: {Erros}", string.Join("; ", detalhesErro));
+
+                return BadRequest(new ErroModel($"Dados da vaga inválidos. {detalhesErro}", "ERR_004"));
+            }
+
+            _logger.LogInformation(
+                "Descrição da vaga recebida. Preview: '{preview}{descricao}'. Link: {link}",
+                vagaInput.Descricao[..Math.Min(vagaInput.Descricao.Length, 100)],
+                vagaInput.Descricao.Length > 100 ? "..." : "",
+                vagaInput.Link ?? "N/A"
+            );
+
+            try
+            {
+                // **LÓGICA DE PROCESSAMENTO DA DESCRIÇÃO DA VAGA (PLATZHALTER) **
+                // Aqui você irá:
+                // 1. (Opcional) Salvar a descrição da vaga e o link se for relevante para o fluxo.
+                // 2. Preparar esta descrição para ser enviada ao Agente Gemini que analisa vagas.
+                //    Exemplo conceitual:
+                //    // var analiseVagaGemini = await _servicoGemini.AnalisarVagaAsync(vagaInput.Descricao, vagaInput.Link);
+                _logger.LogInformation("Análise da vaga com Gemini (simulada).");
+
+
+                // **RESPOSTA SIMULADA PARA O MVP:**
+                var resultadoSimulado = new
+                {
+                    mensagem = "Descrição da vaga recebida e processamento simulado com sucesso!",
+                    // Você pode retornar um ID se armazenar a vaga, ou um resumo simulado da IA
+                    resumoRequisitosIA = new[] { "Requisito X (simulado)", "Habilidade Y (simulada)", "Experiência Z (simulada)" },
+                    culturaEmpresaIA = "Cultura da empresa parece ser focada em colaboração e inovação (simulado)."
+                };
+
+                // Simula um pequeno delay como se estivesse processando
+                await Task.Delay(100); // Apenas para simulação, remova em produção
+
+                return Ok(resultadoSimulado);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao processar a submissão da descrição da vaga.");
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new ErroModel(
+                        "Ocorreu um erro interno ao processar a descrição da vaga. Tente novamente mais tarde.",
+                        StatusCodes.Status500InternalServerError.ToString()
+                    )
                 );
             }
         }
