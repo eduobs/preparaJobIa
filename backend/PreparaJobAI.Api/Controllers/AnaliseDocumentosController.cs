@@ -1,5 +1,8 @@
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using PreparaJobAI.Api.Models;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
 
 namespace PreparaJobAI.Api.Controllers
 {
@@ -19,15 +22,14 @@ namespace PreparaJobAI.Api.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)] // Exemplo de tipo de retorno para Swagger
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-        public IActionResult UploadCurriculo(IFormFile arquivoCurriculo)
+        public async Task<IActionResult> UploadCurriculoAsync(IFormFile arquivoCurriculo)
         {
             if (arquivoCurriculo == null || arquivoCurriculo.Length == 0)
             {
                 _logger.LogWarning("Tentativa de upload de currículo sem arquivo ou com arquivo vazio.");
-                return BadRequest("Nenhum arquivo foi enviado ou o arquivo está vazio.");
+                return BadRequest(new ErroModel("Nenhum arquivo foi enviado ou o arquivo está vazio.", "ERR_001"));
             }
 
-            // Opcional, mas bom para o MVP: Logar o tipo de conteúdo, mas não bloquear se não for PDF ainda.
             _logger.LogInformation(
                 "Currículo recebido: {nomeArquivo}, Tamanho: {tamanhoArquivo} bytes, Tipo: {tipoArquivo}",
                 arquivoCurriculo.FileName,
@@ -43,8 +45,10 @@ namespace PreparaJobAI.Api.Controllers
                     arquivoCurriculo.FileName
                 );
 
-                return BadRequest(new ErroModel("Formato de arquivo inválido. Por favor, envie um PDF.", "ERR_001"));
+                return BadRequest(new ErroModel("Formato de arquivo inválido. Por favor, envie um PDF.", "ERR_002"));
             }
+            
+            string textoDoPdf = string.Empty;
 
             try
             {
@@ -53,30 +57,59 @@ namespace PreparaJobAI.Api.Controllers
                     arquivoCurriculo.FileName
                 );
 
-                // **LÓGICA DE PROCESSAMENTO DO CURRÍCULO (PLATZHALTER) **
-                // Aqui é onde você irá:
-                // 1. Extrair o texto do PDF.
-                //    - Você precisará de uma biblioteca para isso (ex: PdfPig).
-                //    - Exemplo conceitual (NÃO FUNCIONAL AINDA):
-                //      string textoDoPdf;
-                //      using (var stream = arquivoCurriculo.OpenReadStream())
-                //      {
-                //          // textoDoPdf = SuaLogicaDeExtrairTextoComPdfPig(stream);
-                //      }
-                //      _logger.LogInformation($"Texto extraído (simulado) para: {arquivoCurriculo.FileName}");
+                // Usar MemoryStream é uma boa prática para IFormFile, pois evita salvar em disco desnecessariamente.
+                using (var memoryStream = new MemoryStream())
+                {
+                    await arquivoCurriculo.CopyToAsync(memoryStream);
+                    memoryStream.Position = 0; // Resetar a posição do stream para o início
 
-                // 2. Enviar o texto extraído para o seu Agente Gemini que lê currículos.
-                //    - Exemplo conceitual:
-                //      // var analiseGemini = await _servicoGemini.AnalisarCurriculoAsync(textoDoPdf);
-                //      _logger.LogInformation($"Análise com Gemini (simulada) para: {arquivoCurriculo.FileName}");
+                    using (PdfDocument document = PdfDocument.Open(memoryStream))
+                    {
+                        var textoCompleto = new StringBuilder();
+                        foreach (Page page in document.GetPages())
+                        {
+                            textoCompleto.Append(page.Text);
+                            textoCompleto.Append(" "); // Adiciona um espaço entre o texto de diferentes páginas
+                        }
+                        textoDoPdf = textoCompleto.ToString();
+                    }
+                }
 
+                if (string.IsNullOrWhiteSpace(textoDoPdf))
+                {
+                    _logger.LogWarning(
+                        "Não foi possível extrair texto do PDF: {nomeArquivo} ou o PDF não contém texto.",
+                        arquivoCurriculo.FileName
+                    );
 
-                // **RESPOSTA SIMULADA PARA O MVP (enquanto a lógica do Gemini não está pronta):**
+                    return BadRequest(new ErroModel("Não foi possível extrair texto do PDF.", "ERR_003"));
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Texto extraído com sucesso do PDF: {nomeArquivo}. Tamanho do texto: {tamnhoTexto} caracteres.",
+                        arquivoCurriculo.FileName,
+                        textoDoPdf.Length
+                    );
+                }
+
+                // **LÓGICA DE ENVIO PARA O GEMINI (PLATZHALTER) **
+                // Agora você tem `textoDoPdf`. O próximo passo seria enviar este texto para o Gemini.
+                // var analiseGemini = await _servicoGemini.AnalisarCurriculoAsync(textoDoPdf);
+
+                // **RESPOSTA SIMULADA PARA O MVP (com o texto extraído incluído):**
                 var resultadoSimulado = new
                 {
-                    mensagem = $"Currículo '{arquivoCurriculo.FileName}' recebido e processamento simulado com sucesso!",
-                    pontosChaveExtraidos = new[] { "Desenvolvedor C# .NET (simulado)", "Experiência com APIs REST (simulado)", "Banco de Dados SQL Server (simulado)" },
-                    resumoIA = "Este é um resumo simulado gerado pela IA sobre o currículo enviado."
+                    mensagem = $"Currículo '{arquivoCurriculo.FileName}' recebido e texto extraído com sucesso!",
+                    nomeArquivo = arquivoCurriculo.FileName,
+                    // Preview do texto extraído (primeiros 500 caracteres, por exemplo)
+                    previewTextoExtraido = textoDoPdf.Length > 500 ? textoDoPdf.Substring(0, 500) + "..." : textoDoPdf,
+                    // A análise abaixo ainda é simulada, mas usaria o textoDoPdf para chamar o Gemini
+                    analiseIA = new
+                    {
+                        pontosChave = new[] { "Habilidade A (baseada no texto)", "Experiência B (baseada no texto)" },
+                        resumo = "Resumo do currículo gerado pela IA (baseado no texto)."
+                    }
                 };
 
                 return Ok(resultadoSimulado);
