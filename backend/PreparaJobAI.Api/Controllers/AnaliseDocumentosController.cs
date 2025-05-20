@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using PreparaJobAI.Api.Models;
+using PreparaJobAI.Api.Services;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 
@@ -11,10 +12,12 @@ namespace PreparaJobAI.Api.Controllers
     public class AnaliseDocumentosController : ControllerBase
     {
         private readonly ILogger<AnaliseDocumentosController> _logger;
+        private readonly ServicoGemini _servicoGemini;
 
-        public AnaliseDocumentosController(ILogger<AnaliseDocumentosController> logger)
+        public AnaliseDocumentosController(ILogger<AnaliseDocumentosController> logger, ServicoGemini servicoGemini)
         {
             _logger = logger;
+            _servicoGemini = servicoGemini;
         }
 
         [HttpPost("curriculo")]
@@ -92,26 +95,19 @@ namespace PreparaJobAI.Api.Controllers
                     );
                 }
 
-                // **LÓGICA DE ENVIO PARA O GEMINI (PLATZHALTER) **
-                // Agora você tem `textoDoPdf`. O próximo passo seria enviar este texto para o Gemini.
-                // var analiseGemini = await _servicoGemini.AnalisarCurriculoAsync(textoDoPdf);
+                // **CHAMADA REAL AO GEMINI:**
+                string promptParaGemini = "Por favor, analise o seguinte texto de um currículo e extraia os principais pontos chave como habilidades, experiências relevantes e formação. Apresente um breve resumo do perfil do candidato.";
+                string analiseDoGemini = await _servicoGemini.GerarAnaliseTextoSimplesAsync(promptParaGemini, textoDoPdf);
 
-                // **RESPOSTA SIMULADA PARA O MVP (com o texto extraído incluído):**
-                var resultadoSimulado = new
+                var resultadoReal = new
                 {
-                    mensagem = $"Currículo '{arquivoCurriculo.FileName}' recebido e texto extraído com sucesso!",
+                    mensagem = $"Currículo '{arquivoCurriculo.FileName}' recebido e analisado pela IA!",
                     nomeArquivo = arquivoCurriculo.FileName,
-                    // Preview do texto extraído (primeiros 500 caracteres, por exemplo)
-                    previewTextoExtraido = textoDoPdf.Length > 500 ? textoDoPdf.Substring(0, 500) + "..." : textoDoPdf,
-                    // A análise abaixo ainda é simulada, mas usaria o textoDoPdf para chamar o Gemini
-                    analiseIA = new
-                    {
-                        pontosChave = new[] { "Habilidade A (baseada no texto)", "Experiência B (baseada no texto)" },
-                        resumo = "Resumo do currículo gerado pela IA (baseado no texto)."
-                    }
+                    previewTextoExtraido = textoDoPdf.Length > 200 ? textoDoPdf[..200] + "..." : textoDoPdf,
+                    analiseIA = analiseDoGemini // Resposta direta do Gemini
                 };
 
-                return Ok(resultadoSimulado);
+                return Ok(resultadoReal);
             }
             catch (Exception ex)
             {
@@ -154,28 +150,21 @@ namespace PreparaJobAI.Api.Controllers
 
             try
             {
-                // **LÓGICA DE PROCESSAMENTO DA DESCRIÇÃO DA VAGA (PLATZHALTER) **
-                // Aqui você irá:
-                // 1. (Opcional) Salvar a descrição da vaga e o link se for relevante para o fluxo.
-                // 2. Preparar esta descrição para ser enviada ao Agente Gemini que analisa vagas.
-                //    Exemplo conceitual:
-                //    // var analiseVagaGemini = await _servicoGemini.AnalisarVagaAsync(vagaInput.Descricao, vagaInput.Link);
-                _logger.LogInformation("Análise da vaga com Gemini (simulada).");
+                _logger.LogInformation("Enviando descrição da vaga para análise do Gemini...");
 
+                string promptParaGeminiVaga = "Por favor, analise a seguinte vaga de emprego. Extraia os principais requisitos (habilidades técnicas, experiência necessária, formação), as responsabilidades do cargo e, se possível, identifique aspectos da cultura da empresa mencionada ou implícita no link da vaga.";
+                
+                // O contexto aqui é a própria descrição da vaga
+                string analiseDaVagaPeloGemini = await _servicoGemini.GerarAnaliseTextoSimplesAsync(promptParaGeminiVaga, vagaInput.Link);
 
-                // **RESPOSTA SIMULADA PARA O MVP:**
-                var resultadoSimulado = new
+                var resultadoReal = new
                 {
-                    mensagem = "Descrição da vaga recebida e processamento simulado com sucesso!",
-                    // Você pode retornar um ID se armazenar a vaga, ou um resumo simulado da IA
-                    resumoRequisitosIA = new[] { "Requisito X (simulado)", "Habilidade Y (simulada)", "Experiência Z (simulada)" },
-                    culturaEmpresaIA = "Cultura da empresa parece ser focada em colaboração e inovação (simulado)."
+                    mensagem = "Descrição da vaga recebida e analisada pela IA!",
+                    linkFornecido = vagaInput.Link,
+                    analiseIA = analiseDaVagaPeloGemini
                 };
 
-                // Simula um pequeno delay como se estivesse processando
-                await Task.Delay(100); // Apenas para simulação, remova em produção
-
-                return Ok(resultadoSimulado);
+                return Ok(resultadoReal);
             }
             catch (Exception ex)
             {
