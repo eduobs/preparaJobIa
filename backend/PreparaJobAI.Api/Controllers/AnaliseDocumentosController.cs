@@ -152,10 +152,12 @@ namespace PreparaJobAI.Api.Controllers
             {
                 _logger.LogInformation("Enviando descrição da vaga para análise do Gemini...");
 
-                string promptParaGeminiVaga = "Por favor, analise a seguinte vaga de emprego. Extraia os principais requisitos (habilidades técnicas, experiência necessária, formação), as responsabilidades do cargo e, se possível, identifique aspectos da cultura da empresa mencionada ou implícita no link da vaga.";
-                
+                string promptParaGeminiVaga = "Por favor, analise a seguinte vaga de emprego. Extraia os principais requisitos (habilidades técnicas, experiência necessária, formação), as responsabilidades do cargo e, se possível, identifique aspectos da cultura da empresa mencionada ou implícita no link ou na descrição da vaga.";
+
+                var contexto = $"Link: {vagaInput.Link}\n\nDescrição: {vagaInput.Descricao}";
+
                 // O contexto aqui é a própria descrição da vaga
-                string analiseDaVagaPeloGemini = await _servicoGemini.GerarAnaliseTextoSimplesAsync(promptParaGeminiVaga, vagaInput.Link);
+                string analiseDaVagaPeloGemini = await _servicoGemini.GerarAnaliseTextoSimplesAsync(promptParaGeminiVaga, contexto);
 
                 var resultadoReal = new
                 {
