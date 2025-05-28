@@ -138,13 +138,13 @@ namespace PreparaJobAI.Api.Controllers
                                         .ToList();
                 _logger.LogWarning("Submissão de vaga com dados inválidos: {Erros}", string.Join("; ", detalhesErro));
 
-                return BadRequest(new ErroModel($"Dados da vaga inválidos. {detalhesErro}", "ERR_004"));
+                var mensagemErro = $"Dados da vaga inválidos: {string.Join("; ", detalhesErro)}";
+                return BadRequest(new ErroModel(mensagemErro, "ERR_004"));
             }
 
             _logger.LogInformation(
-                "Descrição da vaga recebida. Preview: '{preview}{descricao}'. Link: {link}",
-                vagaInput.Descricao[..Math.Min(vagaInput.Descricao.Length, 100)],
-                vagaInput.Descricao.Length > 100 ? "..." : "",
+                "Descrição da vaga recebida. Preview: '{Preview}'. Link: {Link}",
+                vagaInput.Descricao != null ? vagaInput.Descricao[..Math.Min(vagaInput.Descricao.Length, 100)] + (vagaInput.Descricao.Length > 100 ? "..." : "") : "N/A",
                 vagaInput.Link ?? "N/A"
             );
 
